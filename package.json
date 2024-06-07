@@ -1,0 +1,40 @@
+{
+  "name": "dyno-api",
+  "version": "03.06.2024",
+  "description": "",
+  "private": true,
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "learnuidev@gmail.com",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "serverless": "^3.38.0",
+    "serverless-appsync-plugin": "^2.4.0",
+    "serverless-iam-roles-per-function": "^3.2.0",
+    "serverless-step-functions": "^3.18.0"
+  },
+  "dependencies": {
+    "@adobe/pdfservices-node-sdk": "^3.4.2",
+    "@aws-sdk/client-bedrock-runtime": "^3.496.0",
+    "@aws-sdk/client-dynamodb": "^3.465.0",
+    "@aws-sdk/lib-dynamodb": "^3.465.0",
+    "@middy/core": "^4.6.5",
+    "@middy/http-cors": "^4.6.5",
+    "adm-zip": "^0.5.12",
+    "aws-sdk": "^2.1480.0",
+    "axios": "^1.6.8",
+    "chance": "^1.1.11",
+    "date-fns": "^2.30.0",
+    "googleapis": "^130.0.0",
+    "lodash": "^4.17.21",
+    "openai": "^4.31.0",
+    "ramda": "^0.29.1",
+    "ulid": "^2.3.0",
+    "x-ray": "^2.3.4",
+    "ytdl-core": "^4.11.5"
+  }
+}

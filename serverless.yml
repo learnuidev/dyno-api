@@ -1,0 +1,171 @@
+service: dyno-api
+frameworkVersion: "3"
+
+plugins:
+  # - serverless-export-env
+  # - serverless-prune-plugin
+  - serverless-iam-roles-per-function
+  # - serverless-api-gateway-throttling
+  # - serverless-plugin-log-retention
+  - serverless-step-functions
+
+package:
+  exclude:
+    - package-lock.json
+    - package.json
+
+custom:
+  name: vishal
+  stage: ${opt:stage, self:provider.stage}
+
+  logRetentionInDays: 30
+  logLevel:
+    default: ALL
+    prod: ERROR
+
+  appSyncLogLevel:
+    default: ALL
+    prod: ERROR
+
+  CognitoUserPool:
+    Arn: !GetAtt CognitoUserPool.Arn
+    Id: !Ref CognitoUserPool
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  versionFunctions: false
+  region: us-east-1
+  memorySize: 512
+  eventBridge:
+    useCloudFormation: true
+  environment:
+    serviceName: ${self:service}
+    stage: ${self:provider.stage}
+    STAGE: ${self:provider.stage}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, self:custom.logLevel.default}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Scan
+        - dynamodb:PutItem
+        - dynamodb:Query
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+        - dynamodb:ListTables
+        - dynamodb:DeleteItem
+        - dynamodb:BatchWriteItem
+      Resource: "*"
+
+functions:
+  confirmUserSignup:
+    handler: functions/confirm_user_signup.handler
+    environment:
+      USERS_TABLE: !Ref UsersTable
+      USER_PREFERENCE_TABLE: !Ref UserPreferenceTable
+
+resources:
+  Resources:
+    # 1. AWS DynamoDB Table
+    UserPreferenceTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+        Tags:
+          - Key: Environment
+            Value: ${self:custom.stage}
+          - Key: Name
+            Value: user-preference-table
+
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        KeySchema:
+          - AttributeName: email
+            KeyType: HASH
+        AttributeDefinitions:
+          - AttributeName: email
+            AttributeType: S
+          - AttributeName: screenName
+            AttributeType: S
+        GlobalSecondaryIndexes:
+          - IndexName: byScreenName
+            KeySchema:
+              - AttributeName: screenName
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+        Tags:
+          # To keep track of user table for diffeent environment
+          - Key: Environment
+            Value: ${self:custom.stage}
+          - Key: Name
+            Value: users-table
+
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: false
+            RequireNumbers: false
+            RequireUppercase: false
+            RequireSymbols: false
+        UsernameAttributes:
+          - email
+        # Schema:
+        #   - AttributeDataType: String
+        #     Name: name
+        #     Required: false
+        #     Mutable: true
+        LambdaConfig:
+          PostConfirmation: !GetAtt ConfirmUserSignupLambdaFunction.Arn
+
+    # 3. AWS Cognito User Pool Client
+    WebUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        UserPoolId: !Ref CognitoUserPool
+        ClientName: web
+        ExplicitAuthFlows:
+          - ALLOW_USER_SRP_AUTH
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+          - ALLOW_CUSTOM_AUTH
+        PreventUserExistenceErrors: ENABLED
+
+    # 7. AWS  Lambda Permission
+    CognitoUserPoolConfirmUserSignupLambdaPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:invokeFunction
+        FunctionName: !Ref ConfirmUserSignupLambdaFunction
+        Principal: cognito-idp.amazonaws.com
+        SourceArn: !GetAtt CognitoUserPool.Arn
+  Outputs:
+    CognitoUserPoolId:
+      Value: !Ref CognitoUserPool
+    CognitoUserPoolArn:
+      Value: !GetAtt CognitoUserPool.Arn
+
+    CognitoUserPoolProviderName:
+      Value: !GetAtt CognitoUserPool.ProviderName
+
+    CognitoUserPoolWebClientId:
+      Value: !Ref WebUserPoolClient
+
+    WebCognitoUserPoolClientId:
+      Value: !Ref WebUserPoolClient

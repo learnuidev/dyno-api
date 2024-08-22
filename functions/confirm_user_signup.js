@@ -1,26 +1,8 @@
-const AWS = require("aws-sdk");
-
 const DynamoDB = require("aws-sdk/clients/dynamodb");
 const DocumentClient = new DynamoDB.DocumentClient();
 
-const sqs = new AWS.SQS();
-
-const sendEmail = async ({ QueueUrl, subject, recipient, body }) => {
-  const response = await sqs
-    .sendMessage({
-      QueueUrl,
-      MessageBody: JSON.stringify({
-        subject,
-        recipient,
-        body,
-      }),
-    })
-    .promise();
-  return response;
-};
-
-const { USERS_TABLE, COMPOSE_EMAIL_QUEUE_URL, USER_PREFERENCE_TABLE } =
-  process.env;
+// eslint-disable-next-line no-undef
+const { USERS_TABLE, USER_PREFERENCE_TABLE } = process.env;
 
 module.exports.handler = async (event) => {
   if (event.triggerSource === "PostConfirmation_ConfirmSignUp") {
@@ -53,14 +35,6 @@ module.exports.handler = async (event) => {
       },
       ConditionExpression: "attribute_not_exists(userId)",
     }).promise();
-
-    // email user - testing
-    await sendEmail({
-      QueueUrl: COMPOSE_EMAIL_QUEUE_URL,
-      subject: "Welcome to Compose",
-      body: "Welcome to Mandarino, next gen AI language learning platform",
-      recipient: email,
-    });
 
     return event;
   } else {
